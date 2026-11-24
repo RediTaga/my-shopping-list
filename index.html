@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#eaf5ec">
+<title>Shopping List</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+/* Layout: mobile-first single column. Home = section cards with "to buy" counts; section view = item list with a thumb-reach composer pinned to the bottom. */
+:root {
+  --bg: #eaf5ec;          /* fresh mint page */
+  --surface: #ffffff;
+  --ink: #12261a;         /* deep leaf green text */
+  --muted: #5d7366;
+  --line: #d3e6d7;
+  --accent: #1e9e57;      /* basil green */
+  --accent-ink: #ffffff;
+  --accent-soft: #dcf3e4;
+  --tomato: #f0533a;      /* "still to buy" count */
+  --shadow: 0 1px 2px rgba(18,38,26,.06), 0 8px 22px rgba(18,38,26,.08);
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "DM Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  color-scheme: light;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 16px/1.45 var(--font-body);
+  overscroll-behavior-y: none;
+}
+button { font: inherit; color: inherit; }
+.app { max-width: 640px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
+.view { flex: 1; display: flex; flex-direction: column; padding: calc(20px + var(--safe-t)) 16px calc(120px + var(--safe-b)); gap: 16px; }
+[hidden] { display: none !important; }
+
+/* ---------- header ---------- */
+.top { display: flex; align-items: center; gap: 12px; min-height: 48px; }
+.top h1 { font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 1.1; margin: 0; flex: 1; text-wrap: balance; letter-spacing: -.01em; }
+.icon-btn {
+  width: 44px; height: 44px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface);
+  display: grid; place-items: center; cursor: pointer; flex: none; box-shadow: var(--shadow);
+}
+.icon-btn:active { transform: scale(.95); }
+
+.summary {
+  background: var(--accent); color: var(--accent-ink); border-radius: 22px; padding: 18px 20px;
+  display: flex; align-items: center; gap: 16px; box-shadow: 0 10px 24px rgba(30,158,87,.25);
+  position: relative; overflow: hidden;
+}
+.summary::after { /* soft produce-sticker circle */
+  content: ""; position: absolute; right: -30px; top: -30px; width: 130px; height: 130px; border-radius: 50%;
+  background: rgba(255,255,255,.12);
+}
+.summary .big { font-family: var(--font-display); font-weight: 800; font-size: 44px; line-height: 1; font-variant-numeric: tabular-nums; }
+.summary .lbl { font-weight: 600; font-size: 16px; }
+.summary .sub { opacity: .85; font-size: 14px; }
+
+.section-head { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 2px 0; }
+.section-head h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; }
+.section-head .link { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer; padding: 6px 2px; }
+
+/* ---------- section cards ---------- */
+.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow);
+  display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center;
+  padding: 14px 14px 14px 14px; cursor: pointer; width: 100%; text-align: left;
+}
+.card:active { transform: scale(.985); }
+.badge-ico {
+  width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; font-size: 28px;
+  background: var(--tint, var(--accent-soft));
+}
+.card .name { font-weight: 700; font-size: 18px; overflow-wrap: anywhere; }
+.card .meta { font-size: 14px; color: var(--muted); margin-top: 1px; }
+.bar { height: 6px; border-radius: 99px; background: var(--line); margin-top: 8px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s ease; }
+.count {
+  min-width: 48px; height: 48px; padding: 0 10px; border-radius: 16px; display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 800; font-size: 22px; font-variant-numeric: tabular-nums;
+  background: #fff1ee; color: var(--tomato); line-height: 1;
+}
+.count small { display: block; font-family: var(--font-body); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; margin-top: 2px; }
+.count.done { background: var(--accent-soft); color: var(--accent); }
+.count.empty { background: #f1f5f2; color: var(--muted); font-size: 14px; font-family: var(--font-body); font-weight: 600; }
+
+.empty-state { text-align: center; padding: 28px 16px 8px; color: var(--muted); }
+.empty-state strong { display: block; color: var(--ink); font-family: var(--font-display); font-size: 22px; margin-bottom: 4px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  border: 1px dashed #a9d1b5; background: rgba(255,255,255,.7); border-radius: 999px; padding: 9px 14px;
+  font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; min-height: 42px;
+}
+.chip:active { transform: scale(.96); }
+
+/* ---------- bottom action bar ---------- */
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  padding: 12px 16px calc(12px + var(--safe-b));
+  background: linear-gradient(to top, var(--bg) 70%, rgba(234,245,236,0));
+}
+.dock-inner { max-width: 608px; margin: 0 auto; }
+.fab {
+  width: 100%; min-height: 56px; border: 0; border-radius: 18px; background: var(--ink); color: #fff;
+  font-weight: 700; font-size: 17px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+  box-shadow: 0 10px 24px rgba(18,38,26,.25);
+}
+.fab:active { transform: scale(.98); }
+.composer {
+  display: flex; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+  padding: 6px; box-shadow: 0 10px 28px rgba(18,38,26,.16);
+}
+.composer input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--ink);
+  font: inherit; font-size: 17px; padding: 12px 12px;
+}
+.add-btn {
+  border: 0; border-radius: 15px; background: var(--accent); color: #fff; font-weight: 700; padding: 0 20px; min-height: 48px; cursor: pointer;
+}
+.add-btn:disabled { opacity: .45; }
+
+/* ---------- section view ---------- */
+.sec-title { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.sec-title .badge-ico { width: 44px; height: 44px; font-size: 24px; border-radius: 14px; flex: none; }
+.sec-title h1 { font-size: 26px; overflow-wrap: anywhere; }
+.pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill { border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 600; background: var(--surface); border: 1px solid var(--line); }
+.pill.tobuy { color: var(--tomato); border-color: #ffd5cc; background: #fff6f4; }
+.pill.got { color: var(--accent); border-color: #bfe5cc; background: #f2fbf5; }
+
+.items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.item {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  display: grid; grid-template-columns: 1fr auto; align-items: center; overflow: hidden;
+}
+.item .tap {
+  display: flex; align-items: center; gap: 14px; padding: 14px 6px 14px 14px; min-height: 58px;
+  border: 0; background: none; text-align: left; cursor: pointer; width: 100%;
+}
+.box {
+  width: 28px; height: 28px; border-radius: 9px; border: 2px solid #b9d6c2; flex: none;
+  display: grid; place-items: center; transition: background .15s, border-color .15s;
+}
+.box svg { opacity: 0; }
+.item.bought .box { background: var(--accent); border-color: var(--accent); }
+.item.bought .box svg { opacity: 1; }
+.item .label { font-size: 17px; font-weight: 500; overflow-wrap: anywhere; }
+.item.bought { background: rgba(255,255,255,.6); }
+.item.bought .label { color: var(--muted); text-decoration: line-through; }
+.item .x {
+  width: 48px; height: 58px; border: 0; background: none; color: #93a89a; cursor: pointer; display: grid; place-items: center;
+}
+.item .x:active { color: var(--tomato); }
+.item.pop { animation: pop .2s ease; }
+@keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.cart-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 2px 0; }
+.cart-head h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; display: flex; gap: 6px; align-items: center; }
+.clear-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 8px 14px; font-weight: 600; font-size: 14px; cursor: pointer; color: var(--ink); }
+
+/* ---------- bottom sheet ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(12,28,18,.35); z-index: 20; opacity: 0; transition: opacity .2s; }
+.scrim.show { opacity: 1; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; max-width: 640px; margin: 0 auto;
+  background: var(--surface); border-radius: 26px 26px 0 0; padding: 10px 18px calc(18px + var(--safe-b));
+  transform: translateY(100%); transition: transform .25s ease; max-height: 88%; overflow-y: auto;
+  box-shadow: 0 -10px 30px rgba(12,28,18,.18);
+}
+.sheet.show { transform: none; }
+.grab { width: 40px; height: 5px; border-radius: 9px; background: var(--line); margin: 0 auto 12px; }
+.sheet h3 { font-family: var(--font-display); font-weight: 800; font-size: 22px; margin: 0 0 14px; }
+.field { width: 100%; border: 1.5px solid var(--line); border-radius: 14px; padding: 14px; font: inherit; font-size: 17px; color: var(--ink); outline: none; background: #fbfdfb; }
+.field:focus { border-color: var(--accent); }
+.lbl-sm { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 16px 0 8px; display: block; }
+.icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; }
+.icons button {
+  height: 52px; border-radius: 14px; border: 2px solid transparent; background: var(--tint); font-size: 26px; cursor: pointer;
+}
+.icons button[aria-pressed="true"] { border-color: var(--ink); }
+.sheet-actions { display: flex; gap: 10px; margin-top: 18px; }
+.btn { flex: 1; min-height: 52px; border-radius: 15px; border: 0; font-weight: 700; font-size: 16px; cursor: pointer; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:disabled { opacity: .45; }
+.btn.ghost { background: #f1f5f2; color: var(--ink); }
+.btn.danger { background: #fff1ee; color: var(--tomato); }
+.menu-list { display: grid; gap: 8px; }
+.menu-list .btn { text-align: left; padding: 0 16px; }
+
+/* ---------- toast ---------- */
+.toast {
+  position: fixed; left: 50%; transform: translate(-50%, 20px); bottom: calc(92px + var(--safe-b)); z-index: 30;
+  background: var(--ink); color: #fff; border-radius: 14px; padding: 10px 10px 10px 16px; display: flex; gap: 12px; align-items: center;
+  font-size: 15px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: calc(100% - 32px);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast button { border: 0; background: rgba(255,255,255,.14); color: #bff0cf; font-weight: 700; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+
+:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- sign-in / loading ---------- */
+.gate { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 14px; padding: 32px 24px calc(32px + var(--safe-b)); min-height: 100%; }
+.gate .logo { width: 88px; height: 88px; border-radius: 28px; background: var(--accent); display: grid; place-items: center; font-size: 46px; box-shadow: 0 12px 28px rgba(30,158,87,.3); }
+.gate h1 { font-family: var(--font-display); font-weight: 800; font-size: 32px; margin: 6px 0 0; }
+.gate p { color: var(--muted); margin: 0; max-width: 32ch; }
+.gbtn { margin-top: 10px; min-height: 54px; padding: 0 22px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; font-size: 16px; display: inline-flex; gap: 12px; align-items: center; cursor: pointer; box-shadow: var(--shadow); }
+.gbtn:active { transform: scale(.98); }
+.gate .err { color: var(--tomato); font-weight: 600; font-size: 14px; }
+.spinner { width: 34px; height: 34px; border-radius: 50%; border: 3.5px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.avatar { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--surface); background: var(--accent-soft); color: var(--accent); font-weight: 800; display: grid; place-items: center; cursor: pointer; flex: none; box-shadow: var(--shadow); overflow: hidden; padding: 0; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.item .by { display: block; font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 1px; }
+.offline { font-size: 13px; color: var(--muted); text-align: center; }
+.sr { position: absolute; left: -9999px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@media (min-width: 700px) {
+  .view { padding-top: 40px; }
+  .top h1 { font-size: 36px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- LOADING / SIGN-IN -->
+  <main class="gate" id="loading"><div class="spinner" aria-label="Loading"></div></main>
+  <main class="gate" id="signin" hidden>
+    <div class="logo" aria-hidden="true">🛒</div>
+    <h1>Shopping List</h1>
+    <p id="signinMsg">Sign in with Google to see and edit your shared list.</p>
+    <button class="gbtn" id="signinBtn" type="button">
+      <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="err" id="signinErr" hidden></div>
+  </main>
+
+
+  <!-- HOME: sections -->
+  <main class="view" id="home" hidden>
+    <div class="top">
+      <h1>Shopping List</h1>
+      <button class="avatar" id="accountBtn" type="button" aria-label="Account"></button>
+    </div>
+
+    <div class="summary" id="summary">
+      <div class="big" id="sumBig">0</div>
+      <div>
+        <div class="lbl" id="sumLbl">items to buy</div>
+        <div class="sub" id="sumSub">Add a section to get started</div>
+      </div>
+    </div>
+
+    <div class="section-head" id="cardsHead">
+      <h2>Sections</h2>
+    </div>
+    <ul class="cards" id="cards"></ul>
+
+    <div class="offline" id="syncNote" hidden></div>
+    <div id="suggestWrap">
+      <div class="section-head"><h2 id="suggestTitle">Quick add a section</h2></div>
+      <div class="chips" id="suggest"></div>
+    </div>
+  </main>
+
+  <!-- SECTION: items -->
+  <main class="view" id="section" hidden>
+    <div class="top">
+      <button class="icon-btn" id="backBtn" type="button" aria-label="Back to all sections">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 4.5 7 10l5.5 5.5"/></svg>
+      </button>
+      <div class="sec-title">
+        <div class="badge-ico" id="secIco"></div>
+        <h1 id="secName"></h1>
+      </div>
+      <button class="icon-btn" id="secMenuBtn" type="button" aria-label="Section options">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><circle cx="4" cy="10" r="1.8"/><circle cx="10" cy="10" r="1.8"/><circle cx="16" cy="10" r="1.8"/></svg>
+      </button>
+    </div>
+    <div class="pill-row" id="secPills"></div>
+
+    <ul class="items" id="toBuy"></ul>
+    <div class="empty-state" id="secEmpty" hidden></div>
+
+    <div id="cartWrap" hidden>
+      <div class="cart-head">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3h2l2 10h9l2-7H6"/><circle cx="8" cy="17" r="1.3"/><circle cx="15" cy="17" r="1.3"/></svg>
+          In the cart <span id="cartCount"></span>
+        </h2>
+        <button class="clear-btn" id="clearBought" type="button">Remove bought</button>
+      </div>
+      <ul class="items" id="bought" style="margin-top:8px"></ul>
+    </div>
+  </main>
+
+  <!-- bottom dock -->
+  <div class="dock" id="dock" hidden>
+    <div class="dock-inner">
+      <button class="fab" id="addSectionBtn" type="button">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>
+        New section
+      </button>
+      <form class="composer" id="itemForm" autocomplete="off" hidden>
+        <label for="itemInput" class="sr">Item to buy</label>
+        <input id="itemInput" type="text" placeholder="Add an item, e.g. 1 kg tomatoes" maxlength="120" enterkeyhint="done">
+        <button class="add-btn" id="itemAdd" type="submit" disabled>Add</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- sheet -->
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <div class="grab"></div>
+  <div id="sheetBody"></div>
+</div>
+
+<div class="toast" id="toast" role="status"><span id="toastMsg"></span><button type="button" id="toastUndo">Undo</button></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js";
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, writeBatch }
+  from "https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js";
+
+// ---------- Firebase ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyCyUq6qBA4ej70LOuY_Kv3UF2PGZjk_FZ8",
+  authDomain: "shopping-list-web-app-ed014.firebaseapp.com",
+  projectId: "shopping-list-web-app-ed014",
+  storageBucket: "shopping-list-web-app-ed014.firebasestorage.app",
+  messagingSenderId: "631321291904",
+  appId: "1:631321291904:web:c9e1fa905f0c7edc504a65"
+};
+const LIST_ID = "main"; // one shared list: lists/main/sections and lists/main/items
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+let db;
+try {
+  // Keeps a copy on the phone, so the list opens instantly and works with bad signal in the shop.
+  db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+} catch { db = getFirestore(app); }
+const secCol = collection(db, "lists", LIST_ID, "sections");
+const itemCol = collection(db, "lists", LIST_ID, "items");
+
+const $ = (id) => document.getElementById(id);
+
+// Section icons with their tint colours.
+const ICONS = [
+  ["🥦", "#dff3e3"], ["🍎", "#ffe4e0"], ["🍌", "#fff3c9"], ["🥛", "#e3eefc"], ["🧀", "#fff0cc"],
+  ["🥩", "#ffe1e1"], ["🐟", "#ddeffa"], ["🍞", "#f7e8d4"], ["🥤", "#ede4fb"], ["🥫", "#fde6d6"],
+  ["🍫", "#efe2d8"], ["🧊", "#e0f4f7"], ["🧴", "#e6f0ee"], ["🧻", "#eef0f3"], ["🐾", "#f1e9df"], ["🛒", "#e7efe9"],
+];
+const tintOf = (ico) => (ICONS.find(i => i[0] === ico) || ICONS[ICONS.length - 1])[1];
+const PRESETS = [
+  ["Vegetables", "🥦"], ["Fruits", "🍎"], ["Dairy", "🥛"], ["Meat", "🥩"], ["Fish", "🐟"],
+  ["Bakery", "🍞"], ["Drinks", "🥤"], ["Pantry", "🥫"], ["Snacks", "🍫"], ["Frozen", "🧊"], ["Household", "🧴"],
+];
+const guessIcon = (name) => {
+  const n = name.toLowerCase();
+  const map = [["veg", "🥦"], ["fruit", "🍎"], ["dairy", "🥛"], ["milk", "🥛"], ["cheese", "🧀"], ["meat", "🥩"], ["fish", "🐟"], ["sea", "🐟"],
+    ["bak", "🍞"], ["bread", "🍞"], ["drink", "🥤"], ["bever", "🥤"], ["pantry", "🥫"], ["can", "🥫"], ["snack", "🍫"], ["sweet", "🍫"],
+    ["frozen", "🧊"], ["house", "🧴"], ["clean", "🧴"], ["paper", "🧻"], ["pet", "🐾"]];
+  const hit = map.find(([k]) => n.includes(k));
+  return hit ? hit[1] : "🛒";
+};
+
+// ---------- state (filled live from Firestore) ----------
+let user = null;
+let sections = [];      // {id, name, icon, created}
+let items = [];         // {id, sectionId, name, bought, created, by}
+let loaded = { s: false, i: false };
+let unsub = [];
+let justAdded = null;
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const itemsOf = (sid) => items.filter(i => i.sectionId === sid).sort((a, b) => a.created - b.created);
+const leftIn = (sid) => items.filter(i => i.sectionId === sid && !i.bought).length;
+const firstName = () => (user && (user.displayName || user.email || "").split(/[ @]/)[0]) || "";
+
+function failed(e) {
+  console.error(e);
+  if (e && e.code === "permission-denied") showDenied();
+  else toast("That change didn't save. Check your connection.");
+}
+const run = (p) => p.catch(failed);
+
+// ---------- auth ----------
+onAuthStateChanged(auth, (u) => {
+  user = u;
+  unsub.forEach(f => f()); unsub = [];
+  sections = []; items = []; loaded = { s: false, i: false };
+  if (!u) { show("signin"); return; }
+  $("signinMsg").textContent = "Sign in with Google to see and edit your shared list.";
+  show("loading");
+  renderAvatar();
+  const onErr = (e) => { if (e.code === "permission-denied") showDenied(); else { console.error(e); syncNote("Can't reach the list right now. Showing what's saved on this phone."); } };
+  unsub.push(onSnapshot(secCol, (snap) => {
+    sections = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.created || 0) - (b.created || 0));
+    loaded.s = true; syncNote(snap.metadata.fromCache && !navigator.onLine ? "You're offline. Changes will sync when you're back online." : ""); render();
+  }, onErr));
+  unsub.push(onSnapshot(itemCol, (snap) => {
+    items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loaded.i = true; render();
+  }, onErr));
+});
+getRedirectResult(auth).catch(e => signinError(e));
+
+$("signinBtn").addEventListener("click", async () => {
+  $("signinErr").hidden = true;
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  try { await signInWithPopup(auth, provider); }
+  catch (e) {
+    if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") {
+      try { await signInWithRedirect(auth, provider); } catch (e2) { signinError(e2); }
+    } else if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request") signinError(e);
+  }
+});
+function signinError(e) {
+  if (!e) return;
+  console.error(e);
+  const msg = e.code === "auth/unauthorized-domain"
+    ? "This website isn't allowed to sign in yet. Add it under Authentication → Settings → Authorized domains in Firebase."
+    : "Sign-in didn't work. Please try again.";
+  $("signinErr").textContent = msg; $("signinErr").hidden = false;
+}
+function showDenied() {
+  unsub.forEach(f => f()); unsub = [];
+  show("signin");
+  $("signinMsg").textContent = `${user ? user.email : "This account"} doesn't have access to this list. Sign in with an allowed Google account.`;
+  signOut(auth).catch(() => {});
+}
+function renderAvatar() {
+  const b = $("accountBtn");
+  b.innerHTML = user && user.photoURL ? `<img src="${esc(user.photoURL)}" alt="" referrerpolicy="no-referrer">` : esc((firstName()[0] || "?").toUpperCase());
+}
+$("accountBtn").addEventListener("click", () => {
+  openSheet(`<h3 id="sheetTitle">Signed in</h3>
+    <p style="margin:-6px 0 16px;color:var(--muted)">${esc(user ? user.email : "")}</p>
+    <div class="menu-list">
+      <button class="btn danger" type="button" data-act="out">Sign out</button>
+      <button class="btn ghost" type="button" data-act="close">Cancel</button>
+    </div>`, (body) => body.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-act]"); if (!b) return;
+      closeSheet();
+      if (b.dataset.act === "out") { location.hash = ""; signOut(auth); }
+    }));
+});
+
+// ---------- views ----------
+let mode = "loading";
+function show(m) { mode = m; render(); }
+function syncNote(t) { $("syncNote").textContent = t; $("syncNote").hidden = !t; }
+
+// ---------- routing (#s-<id> opens a section; back button works) ----------
+const currentId = () => (location.hash.startsWith("#s-") ? location.hash.slice(3) : null);
+const current = () => sections.find(s => s.id === currentId());
+window.addEventListener("hashchange", () => { closeSheet(true); render(); window.scrollTo(0, 0); });
+const openSection = (id) => { location.hash = "s-" + id; };
+const goHome = () => { if (history.length > 1 && currentId()) history.back(); else location.hash = ""; };
+
+// ---------- render ----------
+function render() {
+  const ready = !!user && loaded.s && loaded.i;
+  $("signin").hidden = mode !== "signin";
+  $("loading").hidden = mode === "signin" || ready;
+  if (mode === "signin" || !ready) { $("home").hidden = true; $("section").hidden = true; $("dock").hidden = true; return; }
+  const sec = current();
+  if (currentId() && !sec) history.replaceState(null, "", location.pathname);
+  $("home").hidden = !!sec;
+  $("section").hidden = !sec;
+  $("dock").hidden = false;
+  $("addSectionBtn").hidden = !!sec;
+  $("itemForm").hidden = !sec;
+  sec ? renderSection(sec) : renderHome();
+}
+
+function renderHome() {
+  const total = items.filter(i => !i.bought && sections.some(s => s.id === i.sectionId)).length;
+  const sectionsWith = sections.filter(s => leftIn(s.id) > 0).length;
+  $("sumBig").textContent = total;
+  $("sumLbl").textContent = total === 1 ? "item to buy" : "items to buy";
+  $("sumSub").textContent = !sections.length ? "Add a section to get started"
+    : total === 0 ? "All done. Nothing left to buy."
+    : `across ${sectionsWith} section${sectionsWith === 1 ? "" : "s"}`;
+
+  $("cardsHead").hidden = !sections.length;
+  $("cards").innerHTML = sections.map(s => {
+    const all = itemsOf(s.id).length, n = leftIn(s.id), got = all - n;
+    const pct = all ? Math.round(got / all * 100) : 0;
+    const meta = !all ? "No items yet" : n === 0 ? `All ${all} bought` : `${got} of ${all} bought`;
+    const count = !all ? `<div class="count empty">Empty</div>`
+      : n === 0 ? `<div class="count done"><svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg></div>`
+      : `<div class="count"><div>${n}<small>to buy</small></div></div>`;
+    return `<li><button class="card" type="button" data-id="${esc(s.id)}" aria-label="${esc(s.name)}, ${n} to buy">
+      <div class="badge-ico" style="--tint:${tintOf(s.icon)}">${esc(s.icon)}</div>
+      <div><div class="name">${esc(s.name)}</div><div class="meta">${meta}</div>${all ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ""}</div>
+      ${count}
+    </button></li>`;
+  }).join("");
+
+  const have = new Set(sections.map(s => (s.name || "").toLowerCase()));
+  const sugg = PRESETS.filter(([n]) => !have.has(n.toLowerCase()));
+  $("suggestWrap").hidden = !sugg.length;
+  $("suggestTitle").textContent = sections.length ? "Add another section" : "Quick add a section";
+  $("suggest").innerHTML = sugg.map(([n, i]) => `<button class="chip" type="button" data-name="${n}" data-icon="${i}">${i} ${n}</button>`).join("");
+}
+
+function renderSection(s) {
+  $("secIco").textContent = s.icon;
+  $("secIco").style.setProperty("--tint", tintOf(s.icon));
+  $("secName").textContent = s.name;
+  const list = itemsOf(s.id);
+  const toBuy = list.filter(i => !i.bought), got = list.filter(i => i.bought);
+  $("secPills").innerHTML = list.length
+    ? `<span class="pill tobuy">${toBuy.length} to buy</span><span class="pill got">${got.length} in cart</span>` : "";
+  const me = firstName();
+  const row = (i) => `<li class="item${i.bought ? " bought" : ""}${i.id === justAdded ? " pop" : ""}" data-id="${esc(i.id)}">
+    <button class="tap" type="button" aria-pressed="${!!i.bought}" aria-label="${esc(i.name)}${i.bought ? ", in cart. Tap to put back" : ". Tap when bought"}">
+      <span class="box"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg></span>
+      <span class="label">${esc(i.name)}${i.by && i.by !== me ? `<span class="by">added by ${esc(i.by)}</span>` : ""}</span>
+    </button>
+    <button class="x" type="button" aria-label="Delete ${esc(i.name)}"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
+  </li>`;
+  $("toBuy").innerHTML = toBuy.map(row).join("");
+  $("bought").innerHTML = got.map(row).join("");
+  $("cartWrap").hidden = !got.length;
+  $("cartCount").textContent = got.length ? `(${got.length})` : "";
+  const empty = $("secEmpty");
+  if (!list.length) { empty.hidden = false; empty.innerHTML = `<strong>Nothing here yet</strong>Add what you need to buy using the box below.`; }
+  else if (!toBuy.length) { empty.hidden = false; empty.innerHTML = `<strong>All bought</strong>Everything in ${esc(s.name)} is in the cart.`; }
+  else empty.hidden = true;
+  justAdded = null;
+}
+
+// ---------- writes ----------
+const secRef = (id) => doc(secCol, id);
+const itemRef = (id) => doc(itemCol, id);
+const strip = ({ id, ...rest }) => rest;
+
+function addSection(name, icon) {
+  const id = uid();
+  run(setDoc(secRef(id), { name: name.trim(), icon: icon || guessIcon(name), created: Date.now() }));
+  return id;
+}
+
+// ---------- home actions ----------
+$("cards").addEventListener("click", (e) => { const c = e.target.closest(".card"); if (c) openSection(c.dataset.id); });
+$("suggest").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (c) addSection(c.dataset.name, c.dataset.icon); });
+$("addSectionBtn").addEventListener("click", () => sectionSheet());
+
+// ---------- section actions ----------
+$("backBtn").addEventListener("click", goHome);
+$("itemInput").addEventListener("input", (e) => { $("itemAdd").disabled = !e.target.value.trim(); });
+$("itemForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const s = current(); const v = $("itemInput").value.trim(); if (!s || !v) return;
+  const id = uid(); justAdded = id;
+  run(setDoc(itemRef(id), { sectionId: s.id, name: v, bought: false, created: Date.now(), by: firstName() }));
+  $("itemInput").value = ""; $("itemAdd").disabled = true;
+  $("itemInput").focus();
+});
+const onItemClick = (e) => {
+  const li = e.target.closest(".item"); if (!li) return;
+  const it = items.find(i => i.id === li.dataset.id); if (!it) return;
+  if (e.target.closest(".x")) {
+    run(deleteDoc(itemRef(it.id)));
+    toast(`Deleted ${it.name}`, () => run(setDoc(itemRef(it.id), strip(it))));
+  } else if (e.target.closest(".tap")) {
+    run(updateDoc(itemRef(it.id), { bought: !it.bought }));
+  }
+};
+$("toBuy").addEventListener("click", onItemClick);
+$("bought").addEventListener("click", onItemClick);
+$("clearBought").addEventListener("click", () => {
+  const s = current(); if (!s) return;
+  const gone = itemsOf(s.id).filter(i => i.bought);
+  const b = writeBatch(db); gone.forEach(i => b.delete(itemRef(i.id))); run(b.commit());
+  toast(`Removed ${gone.length} bought item${gone.length === 1 ? "" : "s"}`, () => {
+    const u = writeBatch(db); gone.forEach(i => u.set(itemRef(i.id), strip(i))); run(u.commit());
+  });
+});
+$("secMenuBtn").addEventListener("click", () => {
+  const s = current(); if (!s) return;
+  const list = itemsOf(s.id);
+  openSheet(`<h3 id="sheetTitle">${esc(s.name)}</h3>
+    <div class="menu-list">
+      <button class="btn ghost" type="button" data-act="edit">Rename or change icon</button>
+      <button class="btn ghost" type="button" data-act="uncheck" ${list.some(i => i.bought) ? "" : "disabled"}>Put all bought items back on the list</button>
+      <button class="btn danger" type="button" data-act="delete">Delete section</button>
+      <button class="btn ghost" type="button" data-act="close">Cancel</button>
+    </div>`, (body) => {
+    body.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-act]"); if (!b) return;
+      const act = b.dataset.act;
+      if (act === "close") closeSheet();
+      if (act === "edit") sectionSheet(s);
+      if (act === "uncheck") {
+        const w = writeBatch(db); list.filter(i => i.bought).forEach(i => w.update(itemRef(i.id), { bought: false })); run(w.commit());
+        closeSheet();
+      }
+      if (act === "delete") {
+        const w = writeBatch(db); w.delete(secRef(s.id)); list.forEach(i => w.delete(itemRef(i.id))); run(w.commit());
+        closeSheet(); goHome();
+        setTimeout(() => toast(`Deleted ${s.name}`, () => {
+          const u = writeBatch(db); u.set(secRef(s.id), strip(s)); list.forEach(i => u.set(itemRef(i.id), strip(i))); run(u.commit());
+        }), 50);
+      }
+    });
+  });
+});
+
+// ---------- sheet: add / edit a section ----------
+function sectionSheet(existing) {
+  let icon = existing ? existing.icon : null;
+  let iconTouched = !!existing;
+  openSheet(`<h3 id="sheetTitle">${existing ? "Edit section" : "New section"}</h3>
+    <form id="secForm" autocomplete="off">
+      <label class="sr" for="secNameInput">Section name</label>
+      <input class="field" id="secNameInput" maxlength="40" placeholder="e.g. Vegetables" value="${existing ? esc(existing.name) : ""}" enterkeyhint="done">
+      <span class="lbl-sm">Icon</span>
+      <div class="icons" id="iconGrid" role="group" aria-label="Section icon">
+        ${ICONS.map(([i, t]) => `<button type="button" data-i="${i}" style="--tint:${t}" aria-pressed="${i === icon}">${i}</button>`).join("")}
+      </div>
+      <div class="sheet-actions">
+        <button class="btn ghost" type="button" id="secCancel">Cancel</button>
+        <button class="btn primary" type="submit" id="secSave" ${existing ? "" : "disabled"}>${existing ? "Save" : "Add section"}</button>
+      </div>
+    </form>`, (body) => {
+    const input = body.querySelector("#secNameInput");
+    const grid = body.querySelector("#iconGrid");
+    const mark = () => grid.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.i === icon)));
+    input.addEventListener("input", () => {
+      body.querySelector("#secSave").disabled = !input.value.trim();
+      if (!iconTouched) { icon = input.value.trim() ? guessIcon(input.value) : null; mark(); }
+    });
+    grid.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; icon = b.dataset.i; iconTouched = true; mark(); });
+    body.querySelector("#secCancel").addEventListener("click", () => closeSheet());
+    body.querySelector("#secForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = input.value.trim(); if (!name) return;
+      if (existing) { run(updateDoc(secRef(existing.id), { name, icon: icon || guessIcon(name) })); closeSheet(); }
+      else { const id = addSection(name, icon); closeSheet(); openSection(id); }
+    });
+    setTimeout(() => input.focus(), 260);
+  });
+}
+
+// ---------- sheet plumbing ----------
+let sheetTimer = null;
+function openSheet(html, wire) {
+  clearTimeout(sheetTimer);
+  const sheet = $("sheet"), scrim = $("scrim");
+  $("sheetBody").innerHTML = html;
+  sheet.hidden = false; scrim.hidden = false;
+  requestAnimationFrame(() => { sheet.classList.add("show"); scrim.classList.add("show"); });
+  wire && wire($("sheetBody"));
+}
+function closeSheet(instant) {
+  const sheet = $("sheet"), scrim = $("scrim");
+  if (sheet.hidden) return;
+  sheet.classList.remove("show"); scrim.classList.remove("show");
+  const done = () => { sheet.hidden = true; scrim.hidden = true; $("sheetBody").innerHTML = ""; };
+  if (instant) done(); else sheetTimer = setTimeout(done, 250);
+}
+$("scrim").addEventListener("click", () => closeSheet());
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+
+// ---------- toast with undo ----------
+let toastTimer = null, undoFn = null;
+function toast(msg, undo) {
+  $("toastMsg").textContent = msg; undoFn = undo || null;
+  $("toastUndo").hidden = !undo;
+  $("toast").classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { $("toast").classList.remove("show"); undoFn = null; }, 4500);
+}
+$("toastUndo").addEventListener("click", () => { if (undoFn) undoFn(); undoFn = null; $("toast").classList.remove("show"); });
+
+render();
+</script>
+
+</body>
+</html>
